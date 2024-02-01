@@ -9,3 +9,4 @@ Aquí estan los problemas conocidos a la fecha. Por ejemplo:
 - Al momento de crear un activo, si solo se considera 1 punto el sistema no sabe que hacer.
 
 2WfJ6ZdqH4uJHIk0zhs7xTMcJZA_RBqkSc3FuAivb6SuF6VS
+https://9ef2-181-42-13-6.ngrok-free.app
