@@ -87,3 +87,18 @@ html, body {
 #erasePolygon:active {
     opacity: 1; /* Opacidad al hacer clic */
 }
+
+#measurementSelector {
+    position: absolute;
+    background-color: #4CAF50; 
+    border: none;
+    color: white;
+    bottom: 15px;
+    right: 0px;
+    z-index: 1000;
+    margin-right: 2px;
+    display: block;
+    margin: 4px 2px;
+    text-align: center;
+    text-decoration: none;
+}

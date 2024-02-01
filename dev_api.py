@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile
 from pymongo import MongoClient
+import gridfs
 from pymongo.server_api import ServerApi
 from bson.objectid import ObjectId
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,7 +19,7 @@ class Feature(BaseModel):
     geometry: Geometry
     properties: dict
 
-class ActivoJSON(BaseModel):
+class GeoJSON(BaseModel):
     type: str
     features: List[Feature]
     properties: dict
@@ -40,36 +41,57 @@ try:
 except Exception as ex:
     print('MongoDB connection: failed', ex)
 
+
+#ac es la coleccion de los activos persistentes, fs es la coleccion de los geojson en gridfs
 db = client['test']
 jc = db['geojson']
 ac = db['activos']
+fs = gridfs.GridFS(db)
 
 @app.get("/")
 def index():
     return {"message": "Hello World"}   
 
+
+#Rutas para GeoJSON
+@app.post("/api/v1/geojsonUpload")
+async def upload_geojson(file: UploadFile):
+    try:
+        content = await file.read()
+        geojson_data = json.loads(content)
+        result = fs.put(json.dumps(geojson_data).encode('utf-8'), filename=file.filename)
+        return {'message': 'GeoJSON uploaded successfully', '_id': str(result)}
+    except Exception as ex:
+        return {'message': 'Error uploading GeoJSON', 'error': str(ex)}
+
+
 @app.get("/api/v1/geojsonAll")
 def get_geojson():
-    geojson = jc.find()
+    geojson_files = fs.find()
     result = []
-    for geo in geojson:
-        geo['_id'] = str(geo['_id'])
-        result.append(geo['_id'])
+    for file in geojson_files:
+        data = { "_id": str(file._id), "filename": file.filename}
+        result.append(data)
     return result
 
 @app.get("/api/v1/geojson/{id}")
 def get_geojson_by_id(id):
-    geojson = jc.find_one({'_id': ObjectId(id)})
-    geojson['_id'] = str(geojson['_id'])
-    return geojson['geojson']
+    file = fs.get(ObjectId(id))
+    geojson = json.loads(file.read().decode('utf-8'))
+    geojson['_id'] = str(file._id)
+    return geojson
 
 @app.delete("/api/v1/geojson")
 def delete_geojson():
-    jc.delete_many({})
+    files = fs.find()
+    for file in files:
+        fs.delete(file._id)
     return {'message': 'All GeoJSON deleted successfully'}
 
+
+#Rutas para activos
 @app.post("/api/v1/activos")
-def create_activo(activo: ActivoJSON):
+def create_activo(activo: GeoJSON):
     result = ac.insert_one(activo.dict())
     return {'message': 'Activo created successfully', '_id': str(result.inserted_id)}
 

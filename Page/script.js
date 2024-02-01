@@ -7,6 +7,8 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 
 let conjunto = [];
+let mediciones = [];
+let recorridos = [];
 let poly_segmentos = [];
 let activos = [];
 let lineas = [];
@@ -31,6 +33,28 @@ fetch('http://127.0.0.1:8000/api/v1/activos', {method: 'GET'})
         poly_din.bindPopup("<b>"+activos.features[0].properties.nombre+"</b><br>"+"Ingrese un valor en metros para segmentar esta zona"+"<br><input type='text' id='deltaInput'>");
     });
 });
+
+
+/*
+    Tanto este fetch como la funcion addMeasurementOptions se encargan de llenar
+    el selector de archivos de mediciones con los archivos disponibles en la base de datos
+*/
+fetch("http://127.0.0.1:8000/api/v1/geojsonAll", {method: 'GET'})
+.then(response => response.json())
+.then(data => {
+    data.forEach(opcion => {
+        console.log(opcion);
+        addMeasurementOptions(opcion._id, opcion.filename);
+    })
+});
+
+function addMeasurementOptions(id, name) {
+    const selector = document.getElementById('measurementSelector');    
+    const optionElement = document.createElement('option');
+    optionElement.value = id;
+    optionElement.textContent = name;
+    selector.appendChild(optionElement);
+}
 
 
 /* 
@@ -267,3 +291,26 @@ map.on('popupclose', function(e) {
 });
 
 document.getElementById('togglePolygonMode').addEventListener('click', togglePolygonMode);
+document.getElementById('measurementSelector').addEventListener('change', function(e) {
+    const id = e.target.value;
+    fetch('http://127.0.0.1:8000/api/v1/geojson/'+id, {method: 'GET'})
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        mediciones.push(data);
+        console.log("Empezando a crear recorrido");
+        let latlngs = [];
+        let start_time = performance.now();
+        data.features.forEach(medicion => {
+            let latlng = [medicion.geometry.coordinates[0], medicion.geometry.coordinates[1]];
+            latlngs.push(latlng);
+        });
+        let finish_time = performance.now();
+        
+        let recorrido = L.polyline(latlngs, {color: 'red', weight: 3}).addTo(map);
+        recorridos.push(recorrido);
+
+        const execution_time = finish_time - start_time;
+        console.log(`Tiempo de ejecucion: ${execution_time} milisegundos`);
+    });
+});
