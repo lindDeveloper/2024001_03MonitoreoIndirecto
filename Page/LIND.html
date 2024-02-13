@@ -21,10 +21,16 @@
                 <button id="togglePolygonMode">Crear/Guardar Polígono</button>
                 <div id="textfield_container">
                 </div>
-                <button id="erasePolygon">Eliminar activo</button>
-                <select id="measurementSelector">
-                    <option value="">Selecciona una medicion</option>
-                </select>
+                <div class="measurement">
+                    <select id="measurementSelector">
+                        <option value="">Selecciona una medicion</option>
+                    </select>
+                    <button id="processMeasurement">Procesar pasadas</button>
+                </div>
+                <div class="uploader">
+                    <input type="file" id="fileInput" accept=".csv" />
+                    <button id="uploadButton">Subir Recorrido</button>
+                </div>
             </div>
         </div>
     </div>

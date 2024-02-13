@@ -6,7 +6,7 @@ import json
 
 system("cls")
 #Actualizar directorio de entrada y salida
-file_path = f"C:/Users/Ralsei/Desktop/Puente.csv"
+file_path = f"C:/Users/Ralsei/Desktop/tabla_reducida.csv"
 acelerometros = int(input("Ingrese la cantidad de acelerometros: "))
 nombre = input("Ingrese el nombre del archivo: ")
 output_file = f"C:/Users/Ralsei/Desktop/{nombre}.geojson"

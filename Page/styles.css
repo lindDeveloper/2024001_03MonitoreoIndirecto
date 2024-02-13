@@ -7,7 +7,7 @@ html, body {
 #main {
     position: relative;
     width: 100%;
-    height: calc(100% - 10px);
+    height: calc(100% - 2px);
     display: flex;
 }
 
@@ -102,3 +102,74 @@ html, body {
     text-align: center;
     text-decoration: none;
 }
+
+.uploader{
+    border: none;
+    color: white;
+    bottom: 15px;
+    left: 0px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+}
+
+
+#fileInput[type="file"]::file-selector-button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+}
+
+#fileInput[type="file"]{
+    position: absolute;
+    bottom: 25px;
+    left: 0px;
+    padding: 5px;
+    color: black;
+    font-weight: bold;
+    margin-bottom: 5px;
+    z-index: 1000;
+}
+
+#uploadButton{
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.8;
+    padding: 5px;
+    z-index: 1000;
+}
+#uploadButton:hover {
+    opacity: 1;
+}
+
+#processMeasurement{
+    position: absolute;
+    bottom: 12px;
+    right: 175px;
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 15px;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.8;
+    padding: 5px;
+    z-index: 1000;
+}
+#processMeasurement:hover {
+    opacity: 1;
+}
+

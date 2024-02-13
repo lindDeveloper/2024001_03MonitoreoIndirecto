@@ -14,6 +14,7 @@ let activos = [];
 let lineas = [];
 const colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple',];
 const user = 'admin';
+const uri = 'http://localhost:8000/'
 let area = 15;
 
 let polygonMode = false;
@@ -23,14 +24,20 @@ let descripcion_poli = null;
 let nombreLabel = null;
 let descripcionLabel = null;
 
-fetch('http://127.0.0.1:8000/api/v1/activos', {method: 'GET'})
+fetch(uri+"api/v1/activos", {method: 'GET'})
 .then(response => response.json())
 .then(data => {
     data.forEach(activos => {
-        console.log(activos);
+        //console.log(activos);
         conjunto.push(activos);
         let poly_din = L.geoJSON(activos.features[0], {color: activos.features[0].properties.color}).addTo(map);
         poly_din.bindPopup("<b>"+activos.features[0].properties.nombre+"</b><br>"+"Ingrese un valor en metros para segmentar esta zona"+"<br><input type='text' id='deltaInput'>");
+        activos.features.forEach(feature => {
+            if(feature.properties.es_segmento){
+                let poly_dyn = L.geoJSON(feature, {color: feature.properties.color}).addTo(map);
+                poly_segmentos.push(poly_dyn);
+            }
+        });
     });
 });
 
@@ -39,11 +46,11 @@ fetch('http://127.0.0.1:8000/api/v1/activos', {method: 'GET'})
     Tanto este fetch como la funcion addMeasurementOptions se encargan de llenar
     el selector de archivos de mediciones con los archivos disponibles en la base de datos
 */
-fetch("http://127.0.0.1:8000/api/v1/geojsonAll", {method: 'GET'})
+fetch(uri+"api/v1/geojsonAll", {method: 'GET'})
 .then(response => response.json())
 .then(data => {
     data.forEach(opcion => {
-        console.log(opcion);
+        //console.log(opcion);
         addMeasurementOptions(opcion._id, opcion.filename);
     })
 });
@@ -103,8 +110,8 @@ function togglePolygonMode() {
             }
             
             // Se almacenan tanto los componentes por separado como el conjunto de estos
-            activos.push(poly_din);
-            lineas.push(linea);
+            //activos.push(poly_din);
+            //lineas.push(linea);
             let poly_din_geojson = {
                 type: "Feature",
                 geometry: poly_din.toGeoJSON().geometry,
@@ -124,7 +131,7 @@ function togglePolygonMode() {
                 }
             };
             
-            fetch('http://127.0.0.1:8000/api/v1/activos', {
+            fetch(uri+"api/v1/activos", {
                 method: 'POST',
                 body: JSON.stringify(features_poli),
                 headers: {
@@ -196,22 +203,42 @@ function createPolygon(e) {
     }
 }
 
+function processMeasurement(){
+    console.log('Procesando medicion');
+    let valor = document.getElementById('measurementSelector').value;
+    console.log(valor); 
+    fetch(uri+"api/v1/geojson/"+valor+"/process", {method: 'GET'})
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+    });
+}
+
 /*
     Funcion que segmenta las lineas de las zonas de interes en base al valor delta ingresado
 */
-function segmentLines(){
+function segmentLines(id){
+    let activePolygon = conjunto.find(polygon => polygon._id === id);
     poly_segmentos.forEach(poly => {
-        map.removeLayer(poly);
+        for(let layerID in poly._layers){
+            let layer = poly._layers[layerID];
+            let feature = layer.feature;
+            let act_id = feature.properties.act_id;
+            console.log(act_id);
+            if(act_id === activePolygon._id){
+                map.removeLayer(poly);
+                poly_segmentos = poly_segmentos.filter(segment => segment !== poly);
+            }
+        };
     });
-    poly_segmentos = [];
-    conjunto.forEach(polygon => {
-        let delta_aux = polygon.features[1].properties.delta;
-        if(delta_aux > 0 && polygon.features[1].geometry.type === 'LineString'){
-            let segmentos = turf.lineChunk(polygon.features[1].geometry, delta_aux, {units: 'meters'});
+    activePolygon.features = activePolygon.features.filter(feature => !feature.properties.es_segmento);
+    if(activePolygon){
+        let delta_aux = activePolygon.features[1].properties.delta;
+        if(delta_aux > 0 && activePolygon.features[1].geometry.type === 'LineString'){
+            let segmentos = turf.lineChunk(activePolygon.features[1].geometry, delta_aux, {units: 'meters'});
             let lineas_segmentadas = [];
             let i = 0;
             segmentos.features.forEach(segmento => {
-                
                 let coords = turf.getCoords(segmento);
                 let end = coords[coords.length-1];
                 let bearing = turf.bearing(coords[0], end);
@@ -227,31 +254,42 @@ function segmentLines(){
                 }
                 let linea_segmento = turf.lineString([point1.geometry.coordinates, point2.geometry.coordinates]);
                 lineas_segmentadas.push(linea_segmento);
-                    
-                
-                /*let randomColor = 'white';
-                if (i%2 === 0) randomColor = 'black';
-                L.geoJSON(segmento, {
-                    style: {
-                        color: randomColor,
-                        weight: 2
-                    }
-                }).addTo(map);*/
                 i++;
             });
             for(i = 0; i < lineas_segmentadas.length - 1; i++){
                 let randomColor = 'white';
                 if (i%2 === 0) randomColor = 'black';
-                let poly_segmento = L.polygon(
-                    [[lineas_segmentadas[i].geometry.coordinates[1][1], lineas_segmentadas[i].geometry.coordinates[1][0]],
-                     [lineas_segmentadas[i].geometry.coordinates[0][1], lineas_segmentadas[i].geometry.coordinates[0][0]],
-                     [lineas_segmentadas[i+1].geometry.coordinates[0][1], lineas_segmentadas[i+1].geometry.coordinates[0][0]],
-                     [lineas_segmentadas[i+1].geometry.coordinates[1][1], lineas_segmentadas[i+1].geometry.coordinates[1][0]]],
-                    {color: randomColor}).addTo(map);
-                poly_segmentos.push(poly_segmento);
+                let latlngs = [[lineas_segmentadas[i].geometry.coordinates[1][0], lineas_segmentadas[i].geometry.coordinates[1][1]],
+                    [lineas_segmentadas[i].geometry.coordinates[0][0], lineas_segmentadas[i].geometry.coordinates[0][1]],
+                    [lineas_segmentadas[i+1].geometry.coordinates[0][0], lineas_segmentadas[i+1].geometry.coordinates[0][1]],
+                    [lineas_segmentadas[i+1].geometry.coordinates[1][0], lineas_segmentadas[i+1].geometry.coordinates[1][1]],
+                    [lineas_segmentadas[i].geometry.coordinates[1][0], lineas_segmentadas[i].geometry.coordinates[1][1]]];
+                let poly_segmento = turf.polygon([latlngs]);
+                poly_segmento.properties = {};
+                poly_segmento.properties.es_segmento = true;
+                poly_segmento.properties.color = randomColor;
+                poly_segmento.properties.act_id = activePolygon._id;
+                let poly_dyn = L.geoJSON(poly_segmento, {color: randomColor}).addTo(map);
+                
+                activePolygon.features.push(poly_segmento);
+                poly_segmentos.push(poly_dyn);
             }
         }
-    });
+        console.log(activePolygon);
+        
+        fetch(uri+"api/v1/activos/"+activePolygon._id, {
+            method: 'PUT',
+            body: JSON.stringify(activePolygon),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+        });
+        
+    }
 }
 
 /*
@@ -283,7 +321,7 @@ map.on('popupclose', function(e) {
                 } 
             };
         });
-        segmentLines();
+        segmentLines(activePolygon._id);
     }
 
 
@@ -293,7 +331,7 @@ map.on('popupclose', function(e) {
 document.getElementById('togglePolygonMode').addEventListener('click', togglePolygonMode);
 document.getElementById('measurementSelector').addEventListener('change', function(e) {
     const id = e.target.value;
-    fetch('http://127.0.0.1:8000/api/v1/geojson/'+id, {method: 'GET'})
+    fetch(uri+"api/v1/geojson/"+id, {method: 'GET'})
     .then(response => response.json())
     .then(data => {
         console.log(data);
@@ -302,10 +340,17 @@ document.getElementById('measurementSelector').addEventListener('change', functi
         let latlngs = [];
         let start_time = performance.now();
         data.features.forEach(medicion => {
-            let latlng = [medicion.geometry.coordinates[0], medicion.geometry.coordinates[1]];
+            
+            let latlng = [medicion.geometry.coordinates[1], medicion.geometry.coordinates[0]];
             latlngs.push(latlng);
         });
         let finish_time = performance.now();
+        let fin = [latlngs[0][1], latlngs[0][0]];
+        
+        distancia = turf.distance(fin, conjunto[0].features[1].geometry.coordinates[0], {units: 'meters'});
+        let marker = L.marker(latlngs[0]).addTo(map);
+        console.log(marker);
+        console.log(distancia);
         
         let recorrido = L.polyline(latlngs, {color: 'red', weight: 3}).addTo(map);
         recorridos.push(recorrido);
@@ -314,3 +359,26 @@ document.getElementById('measurementSelector').addEventListener('change', functi
         console.log(`Tiempo de ejecucion: ${execution_time} milisegundos`);
     });
 });
+document.getElementById('uploadButton').addEventListener('click', function() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    const data = new FormData();
+    data.append('file', file);
+    
+    if (file) {
+        fetch(uri+"api/v1/geojsonUpload", {
+            method: 'POST',
+            body: data
+        }).then(response => response.json())
+        .then(data => {
+            console.log(data);
+            //addMeasurementOptions(data._id, data.filename);
+        });
+        // Perform file upload logic here
+        console.log('File selected:', file.name);
+        fileInput.value = '';
+    } else {
+        console.log('No file selected');
+    }
+});
+document.getElementById('processMeasurement').addEventListener('click', processMeasurement);
