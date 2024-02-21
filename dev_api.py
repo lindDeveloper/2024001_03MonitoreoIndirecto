@@ -14,6 +14,7 @@ import csv
 import json
 import io
 from math import radians, sin, cos, sqrt, atan2
+from datetime import datetime
 
 
 class Geometry(BaseModel):
@@ -116,7 +117,7 @@ async def upload_geojson(file: UploadFile):
             geojson['features'].append(feature)
         json_geojson = json.dumps(geojson)
         result = fs.put(json_geojson.encode('utf-8'), filename=file.filename)
-        return {'message': 'GeoJSON uploaded successfully', '_id': str(result)}
+        return {'message': 'GeoJSON uploaded successfully', '_id': str(result), 'filename': file.filename}
     except Exception as ex:
         return {'message': 'Error uploading GeoJSON', 'error': str(ex)}
 
@@ -157,6 +158,10 @@ def process_geojson(id):
             inicio = lista_activos[i]['features'][1]['geometry']['coordinates'][0]
             inicio = Point(inicio)
             inicio = (inicio.x, inicio.y)
+            segmento_polygons = []
+            for j in range(len(lista_activos[i]['features']) - 2):
+                segmento_polygons.append(shape(lista_activos[i]['features'][j + 2]['geometry']))
+            print(segmento_polygons)
             pasada = {"type": "FeatureCollection",
                     "features": [],
                     "properties": {"act_id": str(lista_activos[i]['_id']),
@@ -170,16 +175,35 @@ def process_geojson(id):
                     distancia = haversine(inicio, feature_coords)
                     #print(distancia)
                     feature['properties']['distancia_inicio'] = distancia
+                    if len(segmento_polygons) > 0:
+                        for segmento_polygon in segmento_polygons:
+                            if segmento_polygon.contains(feature_geometry):
+                                feature['properties']['segmento'] = segmento_polygons.index(segmento_polygon) + 1
+                    if(len(pasada['features']) > 0):
+                        datetime1 = datetime.strptime(pasada['features'][len(pasada['features'])-1]['properties']['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
+                        datetime2 = datetime.strptime(feature['properties']['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
+                        print((datetime2 - datetime1).seconds)
+                        if(datetime2 - datetime1).seconds > 60:
+                            pasadas.append(pasada)
+                            result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name']+ '_' + str(it))
+                            results.append({'act_id': str(lista_activos[i]['_id']), 'pasada_id': str(result)})
+                            pasada = {"type": "FeatureCollection",
+                                    "features": [],
+                                    "properties": {"act_id": str(lista_activos[i]['_id']),
+                                                "act_nombre": lista_activos[i]['features'][0]['properties']['nombre'],
+                                                "medicion_id": id,
+                                                "medicion_nombre": geojson['properties']['name']}}
+                    
                     pasada['features'].append(feature)
                     geojson['features'].remove(feature)
                 it +=1
             pasadas.append(pasada)
-            #result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name'])
-            #results.append({'act_id': str(lista_activos[i]['_id']), 'pasada_id': str(result)})
+            result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name'])
+            results.append({'act_id': str(lista_activos[i]['_id']), 'pasada_id': str(result), 'filename': lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name']})
             i += 1
         #print(results)
         print(it)
-        return pasadas
+        return results
     except Exception as ex:
         return {'message': 'Error procesando pasadas', 'error': str(ex)}
 
@@ -200,6 +224,32 @@ def create_activo(activo: GeoJSON):
 @app.put("/api/v1/activos/{id}")
 def update_activo(id, activo: GeoJSON):
     result = ac.update_one({'_id': ObjectId(id)}, {'$set': activo.dict()})
+    pasadas = pasadas_fs.find()
+    activo = ac.find_one({'_id': ObjectId(id)})
+    activo_shape = shape(activo['features'][0]['geometry'])
+    segmentos =[]
+    for i in range(len(activo['features']) - 2):
+        segmentos.append(shape(activo['features'][i + 2]['geometry']))
+    pasadas_actualizadas = []
+    pasada_id = []
+    for pasada in pasadas:
+        pasada_ref = json.loads(pasada.read().decode('utf-8'))
+        if pasada_ref['properties']['act_id'] == id:
+            for feature in pasada_ref['features']:
+                feature_geometry = shape(feature['geometry'])
+                if activo_shape.contains(feature_geometry):
+                    if len(segmentos) > 0:
+                        for segmento in segmentos:
+                            if segmento.contains(feature_geometry):
+                                feature['properties']['segmento'] = segmentos.index(segmento) + 1
+            pasadas_actualizadas.append(pasada_ref)
+            pasada_id.append(pasada._id)
+    i = 0
+    for pasada in pasadas_actualizadas:
+        result_elim = pasadas_fs.delete(pasada_id[i])
+        i += 1
+        print(result_elim)
+        pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= activo['features'][0]['properties']['nombre'] + '_' + pasada['properties']['medicion_nombre'])
     if result.modified_count > 0:
         return {'message': 'Activo updated successfully ','result': result.modified_count}
     else:
@@ -222,16 +272,44 @@ def delete_activos():
 #Rutas para pasadas
 @app.get("/api/v1/pasadas")
 def get_pasadas():
-    pasadas = pasadas_fs.find()
-    result = []
-    for pasada in pasadas:
-        unidad = json.loads(pasada.read().decode('utf-8'))
-        result.append(unidad)
-    return result
+    try:
+        pasadas = pasadas_fs.find()
+        result = []
+        for pasada in pasadas:
+            unidad = { "_id": str(pasada._id), "filename": pasada.filename}
+            result.append(unidad)
+        return result
+    except Exception as ex:
+        return {'message': 'Error obteniendo pasadas', 'error': str(ex)}
+
+@app.get("/api/v1/pasadas/{id}")
+def get_pasada_by_id(id):
+    try:
+        file = pasadas_fs.get(ObjectId(id))
+        pasada = json.loads(file.read().decode('utf-8'))
+        pasada['_id'] = str(file._id)
+        return pasada
+    except Exception as ex:
+        return {'message': 'Error obteniendo pasada', 'error': str(ex)}
+    
+@app.put("/api/v1/pasadas/{id}")
+def update_pasada(id, pasada: GeoJSON):
+    try:
+        pasada = pasada.dict()
+        filename_aux = pasada['properties']['act_nombre'] + '_' + pasada['properties']['medicion_nombre']
+        result1 = pasadas_fs.delete(ObjectId(id))
+        result2 = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= filename_aux)
+        return {'message': 'Pasada actualizada correctamente', '_id': str(result2)}
+    except Exception as ex:
+        return {'message': 'Error actualizando pasada', 'error': str(ex)}
+
 
 @app.delete("/api/v1/pasadas")
 def delete_pasadas():
-    files = pasadas_fs.find()
-    for file in files:
-        pasadas_fs.delete(file._id)
-    return {'message': 'All pasadas deleted successfully'}
+    try:
+        files = pasadas_fs.find()
+        for file in files:
+            pasadas_fs.delete(file._id)
+        return {'message': 'Todas las pasadas se han eliminado correctamente'}
+    except Exception as ex:
+        return {'message': 'Error eliminando pasadas', 'error': str(ex)}

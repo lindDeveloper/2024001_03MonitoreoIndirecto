@@ -11,10 +11,69 @@ html, body {
     display: flex;
 }
 
-#sidebar {
-    overflow: auto;
-    z-index: 1;
+.sidebar {
+    height: 100%;
+    width: 0;
+    position: fixed;
+    top: 0;
+    right: 0;
+    overflow-x: hidden;
+    z-index: 1003;
+    background-color: #111;
+    transition: 0.5s;
+    padding-top: 60px;
+}
+
+.sidebar .closebutton{
+    position: absolute;
+    top: 0;
+    right: 84%;
+    font-size: 36px;
+    margin-left: 50px;
+    cursor: pointer;
+
+}
+
+.sidebar .uploader{
+    position: relative;
+    border: none;
+    color: white;
+    top: 8%;
+    left: 0px;
+    z-index: 1000;
     display: flex;
+    flex-direction: column;
+}
+
+.sidebar .measurement{
+    position: relative;
+    top: 17%;
+}
+
+.sidebar .pasada{
+    position: relative;
+    top: 20%;
+
+}
+
+.sidebar .graph{
+    position: relative;
+    top: 30%;
+
+}
+
+.openbutton {
+    position: fixed;
+    top: 0;
+    right: 0;
+    cursor: pointer;
+    background-color: #111;
+    font-size: 20px;
+    border: none;
+    padding: 10px 15px;
+    color: white;
+    z-index: 1000;
+
 }
 
 #map {
@@ -27,7 +86,7 @@ html, body {
 #togglePolygonMode {
     position: absolute;
     top: 10px;
-    right: 10px;
+    right: 80px;
     background-color: #4CAF50;
     border: none;
     color: white;
@@ -52,7 +111,7 @@ html, body {
 #textfield_container {
     position: absolute;
     top: 40px;
-    right: 10px;
+    right: 80px;
     z-index: 1000;
     display: block;
     margin-top: 2px;
@@ -90,34 +149,28 @@ html, body {
 
 #measurementSelector {
     position: absolute;
-    background-color: #4CAF50; 
+    background-color: #8c7e11; 
     border: none;
     color: white;
     bottom: 15px;
     right: 0px;
-    z-index: 1000;
+    z-index: 1004;
     margin-right: 2px;
+    margin-top: 5px;
     display: block;
     margin: 4px 2px;
     text-align: center;
     text-decoration: none;
 }
 
-.uploader{
-    border: none;
-    color: white;
-    bottom: 15px;
-    left: 0px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-}
+
 
 
 #fileInput[type="file"]::file-selector-button {
     background-color: #4CAF50;
     border: none;
     color: white;
+
 }
 
 #fileInput[type="file"]{
@@ -125,7 +178,7 @@ html, body {
     bottom: 25px;
     left: 0px;
     padding: 5px;
-    color: black;
+    color: white;
     font-weight: bold;
     margin-bottom: 5px;
     z-index: 1000;
@@ -134,7 +187,7 @@ html, body {
 #uploadButton{
     position: absolute;
     bottom: 5px;
-    left: 5px;
+    left: 0px;
     background-color: #4CAF50;
     border: none;
     color: white;
@@ -155,8 +208,8 @@ html, body {
 #processMeasurement{
     position: absolute;
     bottom: 12px;
-    right: 175px;
-    background-color: #4CAF50;
+    left: 0px;
+    background-color: #8c7e11;
     border: none;
     color: white;
     padding: 10px 15px;
@@ -173,3 +226,55 @@ html, body {
     opacity: 1;
 }
 
+#pasadaSelector{
+    position: absolute;
+    right: 0px;
+}
+
+#KPIselector{
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+
+#calculateKPI{
+    position: absolute;
+    left: 0px;
+    top: 20px;
+    opacity: 0.8;
+}
+#calculateKPI:hover {
+    opacity: 1;
+}
+
+#axisSelector{
+    position: absolute;
+    left: 0%;
+    background-color: rgb(212, 108, 33);
+    z-index: 1009;
+}
+
+#deviceSelector{
+    position: absolute;
+    left: 20%;
+    background-color: rgb(212, 108, 33);
+    z-index: 1009;
+}
+
+#plotGraph{
+    position: absolute;
+    left: 60%;
+    background-color: rgb(212, 108, 33);
+    opacity: 0.8;
+    z-index: 1009;
+}
+#plotGraph:hover {
+    opacity: 1;
+}
+
+#graphPlot{
+    position: relative;
+    top: 22px;
+    width: 100%;
+    height: 30%;
+}

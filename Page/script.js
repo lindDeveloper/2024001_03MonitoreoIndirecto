@@ -12,9 +12,10 @@ let recorridos = [];
 let poly_segmentos = [];
 let activos = [];
 let lineas = [];
+let data_pasadas = []; 
 const colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple',];
 const user = 'admin';
-const uri = 'http://localhost:8000/'
+const uri = 'http://192.168.1.125:8000/'
 let area = 15;
 
 let polygonMode = false;
@@ -63,6 +64,22 @@ function addMeasurementOptions(id, name) {
     selector.appendChild(optionElement);
 }
 
+fetch(uri+"api/v1/pasadas", {method: 'GET'})
+.then(response => response.json())
+.then(data => {
+    data.forEach(pasada => {
+        addPasadaOptions(pasada._id, pasada.filename);
+    });
+});
+
+function addPasadaOptions(id, name) {
+    const selector = document.getElementById('pasadaSelector');    
+    const optionElement = document.createElement('option');
+    optionElement.value = id;
+    optionElement.textContent = name;
+    selector.appendChild(optionElement);
+
+}
 
 /* 
     Funcion que maneja un modo de creacion de poligonos,
@@ -211,7 +228,146 @@ function processMeasurement(){
     .then(response => response.json())
     .then(data => {
         console.log(data);
+        addPasadaOptions(data._id, data.filename);
     });
+}
+
+function RMScalc(id){
+    let pasada = data_pasadas.find(pasada => pasada._id === id);
+    let activo = conjunto.find(activo => activo._id === pasada.properties.act_id);
+    let segmentos = activo.features.filter(feature => feature.properties.es_segmento);
+    let data = [];
+    let data_transpose = [];
+    segmentos.forEach(segmento => {
+        data.push([]);
+    });
+    pasada.features.forEach(medicion => {
+        if(medicion.properties.segmento){
+            let index = medicion.properties.segmento - 1;
+            let feature_data = [];
+            feature_data.push(medicion.properties.x1);
+            feature_data.push(medicion.properties.x2);
+            feature_data.push(medicion.properties.x3);
+            feature_data.push(medicion.properties.x4);
+            feature_data.push(medicion.properties.y1);
+            feature_data.push(medicion.properties.y2);
+            feature_data.push(medicion.properties.y3);
+            feature_data.push(medicion.properties.y4);
+            feature_data.push(medicion.properties.z1);
+            feature_data.push(medicion.properties.z2);
+            feature_data.push(medicion.properties.z3);
+            feature_data.push(medicion.properties.z4);
+            data[index].push(feature_data);
+        }
+    });
+    console.log(data);
+    data.forEach(segmento => {
+        let segmento_transpose = transpose(segmento);
+        data_transpose.push(segmento_transpose);
+    });
+    console.log(data_transpose);
+    pasada.properties.RMS = [];
+    data_transpose.forEach(segmento => {
+        let rms = [];
+        segmento.forEach(componente => {
+            let sum = 0;
+            componente.forEach(valor => {
+                sum += valor*valor;
+            });
+            rms.push(Math.sqrt(sum/componente.length));
+        });
+        console.log(rms);
+        pasada.properties.RMS.push(rms);
+        
+    });
+    updateKPI(pasada);
+}
+
+function RMSpaint(pasada){
+    
+    let eje = document.getElementById('axisSelector').value;
+    let accel = document.getElementById('deviceSelector').value;
+    
+    if(eje === "" || accel === ""){
+        console.log("Selecciona un eje y un acelerometro");
+        return;
+    }
+    let RMS = pasada.properties.RMS;
+    let lim_inf = parseInt(eje)*4;
+    let lim_sup = lim_inf;
+    let eje_aux = "X";
+    if(eje === "1"){
+        eje_aux = "Y";
+    }else if(eje === "2"){
+        eje_aux = "Z";
+    }
+    if(accel === "4"){
+        lim_sup += 4;
+    }else{
+        lim_inf += parseInt(accel);
+        lim_sup = lim_inf+ 1;
+    }
+    console.log('lim_inf: '+lim_inf + ' lim_sup: '+lim_sup);
+
+    let x_aux = [];
+    for(let i = 1; i<=RMS.length; i++){
+        x_aux.push(i);
+    }
+    let data = [];
+    for(let i = lim_inf; i<lim_sup; i++){
+        let aux = [];
+        for(let j = 0; j<RMS.length; j++){
+            aux.push(RMS[j][i]);
+        }
+        let accel_aux = i+1 - lim_inf;
+        console.log(accel_aux);
+        let trace = {
+            x: x_aux,
+            y: aux,
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: `${eje_aux} ${accel_aux}`
+        };
+        data.push(trace);
+    
+    }
+    var layout = {
+        title: 'RMS',
+        width: 285,
+        height: 280,
+        margin: {
+            l: 40,
+            r: 1,
+            b: 35,
+            t: 25,
+            pad: 2
+        },
+        xaxis: {
+            title: 'Segmento'
+            
+        },
+        yaxis: {
+            title: 'RMS'
+        }
+    };
+    Plotly.newPlot('graphPlot', data, layout);
+    
+}
+
+function updateKPI(pasada){
+    fetch(uri+"api/v1/pasadas/"+pasada._id, {
+        method: 'PUT',
+        body: JSON.stringify(pasada),
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    }).then(response => response.json()).then(data => {
+        console.log(data);
+    });
+}
+
+function transpose(matrix) {
+    return matrix[0].map((_, i) => matrix.map(row => row[i]));
 }
 
 /*
@@ -296,6 +452,7 @@ function segmentLines(id){
     Funcion que toma valor delta ingresado en popup y lo asigna a la zona de interes correspondiente
 */
 map.on('popupclose', function(e) {
+    if(e.popup._source.feature === undefined) return;
     console.log(e.popup._source);
     let delta = document.getElementById('deltaInput').value;
     if (delta === "" || isNaN(delta) || !Number.isInteger(Number(delta))) {
@@ -347,10 +504,6 @@ document.getElementById('measurementSelector').addEventListener('change', functi
         let finish_time = performance.now();
         let fin = [latlngs[0][1], latlngs[0][0]];
         
-        distancia = turf.distance(fin, conjunto[0].features[1].geometry.coordinates[0], {units: 'meters'});
-        let marker = L.marker(latlngs[0]).addTo(map);
-        console.log(marker);
-        console.log(distancia);
         
         let recorrido = L.polyline(latlngs, {color: 'red', weight: 3}).addTo(map);
         recorridos.push(recorrido);
@@ -358,6 +511,29 @@ document.getElementById('measurementSelector').addEventListener('change', functi
         const execution_time = finish_time - start_time;
         console.log(`Tiempo de ejecucion: ${execution_time} milisegundos`);
     });
+});
+document.getElementById('pasadaSelector').addEventListener('change', function(e) {
+    const id = e.target.value;
+    if(id !== ""){
+        fetch(uri+"api/v1/pasadas/"+id, {method: 'GET'})
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            data_pasadas.push(data);
+            console.log("Empezando a crear recorrido");
+            let latlngs = [];
+            data.features.forEach(pasada => {
+                if(pasada.properties.segmento){
+                    let latlng = [pasada.geometry.coordinates[1], pasada.geometry.coordinates[0]];
+                    latlngs.push(latlng);
+                };
+                
+            });
+            let recorrido = L.polyline(latlngs, {color: 'blue', weight: 5}).addTo(map);
+            recorridos.push(recorrido);
+            
+        });
+    }
 });
 document.getElementById('uploadButton').addEventListener('click', function() {
     const fileInput = document.getElementById('fileInput');
@@ -372,7 +548,7 @@ document.getElementById('uploadButton').addEventListener('click', function() {
         }).then(response => response.json())
         .then(data => {
             console.log(data);
-            //addMeasurementOptions(data._id, data.filename);
+            addMeasurementOptions(data._id, data.filename);
         });
         // Perform file upload logic here
         console.log('File selected:', file.name);
@@ -382,3 +558,34 @@ document.getElementById('uploadButton').addEventListener('click', function() {
     }
 });
 document.getElementById('processMeasurement').addEventListener('click', processMeasurement);
+document.getElementsByClassName('openbutton')[0].addEventListener('click', function() {
+    document.getElementById('sidebar1').style.width = '285px';
+    document.getElementById('main').style.marginRight = '285px';
+});
+document.getElementsByClassName('closebutton')[0].addEventListener('click', function() {
+    document.getElementById('sidebar1').style.width = '0';
+    document.getElementById('main').style.marginRight = '0';
+});
+document.getElementById('calculateKPI').addEventListener('click', function() {
+    const pasada_id = document.getElementById('pasadaSelector').value;
+    const KPI = document.getElementById('KPIselector').value;
+    if(pasada_id === "" || KPI === ""){
+        console.log("Selecciona una pasada y un KPI");
+    }else{
+        if(KPI === "RMS") RMScalc(pasada_id);
+    }
+});
+document.getElementById('plotGraph').addEventListener('click', function() {
+    const pasada_id = document.getElementById('pasadaSelector').value;
+
+    if(pasada_id === ""){
+        console.log("Selecciona una pasada");
+    }else{
+        let pasada = data_pasadas.find(pasada => pasada._id === pasada_id);
+        if(pasada.properties.RMS){
+            RMSpaint(pasada);
+        }else{
+            console.log("No se ha calculado el KPI");
+        }
+    }
+});

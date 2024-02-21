@@ -13,24 +13,62 @@
 </head>
 <body>
     <div id="main">
+        <button class="openbutton">☰</button>
+        <div id="sidebar1" class="sidebar">
+            <button class="closebutton">☰</button>
+            <div class="uploader">
+                <input type="file" id="fileInput" accept=".csv" />
+                <button id="uploadButton">Subir Recorrido</button>
+            </div>
+            <div class="pasada">
+                <select id="pasadaSelector">
+                    <option value="">Selecciona una pasada</option>
+                </select>
+                <select id="KPIselector">
+                    <option value="">KPI</option>
+                    <option value="RMS">RMS</option>
+                </select>
+                <button id="calculateKPI">Calcular</button>
+            </div>
+            <div class="measurement">
+                <select id="measurementSelector">
+                    <option value="">Selecciona una medicion</option>
+                </select>
+                <button id="processMeasurement">Procesar pasadas</button>
+            </div>   
+            <div class="graph">
+                <select id="axisSelector">
+                    <option value="">Eje</option>
+                    <option value="0">X</option>
+                    <option value="1">Y</option>
+                    <option value="2">Z</option>
+                </select>
+                <select id="deviceSelector">
+                    <option value="">Acelerometro</option>
+                    <option value="0">1</option>
+                    <option value="1">2</option>
+                    <option value="2">3</option>
+                    <option value="3">4</option>
+                    <option value="4">Todos</option>
+                </select>
+                <button id="plotGraph">Graficar</button>
+                <div id="graphPlot"></div>
+
+            </div>       
+        </div>
+        
+        
+        
         <div id="map">
             
         </div>
-        <div id="sidebar">
+        <div id="sidebar2">
             <div id="sidebar-content">
                 <button id="togglePolygonMode">Crear/Guardar Polígono</button>
                 <div id="textfield_container">
                 </div>
-                <div class="measurement">
-                    <select id="measurementSelector">
-                        <option value="">Selecciona una medicion</option>
-                    </select>
-                    <button id="processMeasurement">Procesar pasadas</button>
-                </div>
-                <div class="uploader">
-                    <input type="file" id="fileInput" accept=".csv" />
-                    <button id="uploadButton">Subir Recorrido</button>
-                </div>
+                
+                
             </div>
         </div>
     </div>
@@ -38,5 +76,6 @@
      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
      crossorigin=""></script>
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="utf-8"></script>
     <script src="script.js"></script>
 </body>
