@@ -7,12 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Any, List
-from shapely.geometry import shape, Point, Polygon
-from geopy.distance import geodesic
-import geopandas as gpd
-import csv
+from shapely.geometry import shape, Point
 import json
-import io
 from math import radians, sin, cos, sqrt, atan2
 from datetime import datetime
 
@@ -121,7 +117,6 @@ async def upload_geojson(file: UploadFile):
     except Exception as ex:
         return {'message': 'Error uploading GeoJSON', 'error': str(ex)}
 
-
 @app.get("/api/v1/geojsonAll")
 def get_geojson():
     geojson_files = fs.find()
@@ -138,11 +133,11 @@ def get_geojson_by_id(id):
     geojson['_id'] = str(file._id)
     return geojson
 
-@app.get("/api/v1/geojson/{id}/process")
-def process_geojson(id):
+@app.get("/api/v1/geojson/{user}/process/{id}")
+def process_geojson(id:str, user:str):
     try:
         file = fs.get(ObjectId(id))
-        activos = ac.find()
+        activos = ac.find({'properties.user': user})
         lista_activos = []
         activo_polygons = []
         for activo in activos:
@@ -156,6 +151,7 @@ def process_geojson(id):
         results = []
         for activo_polygon in activo_polygons:
             inicio = lista_activos[i]['features'][1]['geometry']['coordinates'][0]
+            inicio_time = geojson['features'][0]['properties']['timestamp']
             inicio = Point(inicio)
             inicio = (inicio.x, inicio.y)
             segmento_polygons = []
@@ -167,7 +163,8 @@ def process_geojson(id):
                     "properties": {"act_id": str(lista_activos[i]['_id']),
                                  "act_nombre": lista_activos[i]['features'][0]['properties']['nombre'],
                                  "medicion_id": id,
-                                 "medicion_nombre": geojson['properties']['name']}}
+                                 "medicion_nombre": geojson['properties']['name'],
+                                 "timestamp": inicio_time}}
             for feature in geojson['features']:
                 feature_geometry = shape(feature['geometry'])
                 if activo_polygon.contains(feature_geometry):
@@ -182,23 +179,25 @@ def process_geojson(id):
                     if(len(pasada['features']) > 0):
                         datetime1 = datetime.strptime(pasada['features'][len(pasada['features'])-1]['properties']['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
                         datetime2 = datetime.strptime(feature['properties']['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
-                        print((datetime2 - datetime1).seconds)
+                        #print((datetime2 - datetime1).seconds)
                         if(datetime2 - datetime1).seconds > 60:
                             pasadas.append(pasada)
-                            result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name']+ '_' + str(it))
+                            result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + pasada['properties']['timestamp'])
                             results.append({'act_id': str(lista_activos[i]['_id']), 'pasada_id': str(result)})
                             pasada = {"type": "FeatureCollection",
                                     "features": [],
                                     "properties": {"act_id": str(lista_activos[i]['_id']),
                                                 "act_nombre": lista_activos[i]['features'][0]['properties']['nombre'],
                                                 "medicion_id": id,
-                                                "medicion_nombre": geojson['properties']['name']}}
+                                                "medicion_nombre": geojson['properties']['name'],
+                                                "timestamp": inicio_time}}
                     
                     pasada['features'].append(feature)
+                    pasada['properties']['timestamp'] = feature['properties']['timestamp']
                     geojson['features'].remove(feature)
                 it +=1
             pasadas.append(pasada)
-            result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name'])
+            result = pasadas_fs.put(json.dumps(pasada).encode('utf-8'), filename= lista_activos[i]['features'][0]['properties']['nombre'] + '_' + pasada['properties']['timestamp'])
             results.append({'act_id': str(lista_activos[i]['_id']), 'pasada_id': str(result), 'filename': lista_activos[i]['features'][0]['properties']['nombre'] + '_' + geojson['properties']['name']})
             i += 1
         #print(results)
@@ -255,9 +254,10 @@ def update_activo(id, activo: GeoJSON):
     else:
         return {'message': 'Activo not found', 'result': result.modified_count}
 
-@app.get("/api/v1/activos")
-def get_activos():
-    activos = ac.find()
+@app.get("/api/v1/activos/{user}")
+def get_activos(user:str):
+    print(user + " en busqueda de sus activos")
+    activos = ac.find({'properties.user': user})
     result = []
     for activo in activos:
         activo['_id'] = str(activo['_id'])
@@ -269,21 +269,26 @@ def delete_activos():
     ac.delete_many({})
     return {'message': 'All activos deleted successfully'}
 
+
 #Rutas para pasadas
 @app.get("/api/v1/pasadas")
-def get_pasadas():
+def get_pasadas(user:str = None):
+    print(user + " en busqueda de sus pasadas")
     try:
         pasadas = pasadas_fs.find()
+        activos = ac.find({'properties.user': user})
         result = []
         for pasada in pasadas:
             unidad = { "_id": str(pasada._id), "filename": pasada.filename}
-            result.append(unidad)
+            if pasada.filename.split('_')[0] in [activo['features'][0]['properties']['nombre'] for activo in activos]:
+                result.append(unidad)
         return result
     except Exception as ex:
         return {'message': 'Error obteniendo pasadas', 'error': str(ex)}
 
 @app.get("/api/v1/pasadas/{id}")
-def get_pasada_by_id(id):
+def get_pasada_by_id(id:str):
+    print(id)
     try:
         file = pasadas_fs.get(ObjectId(id))
         pasada = json.loads(file.read().decode('utf-8'))
@@ -302,7 +307,6 @@ def update_pasada(id, pasada: GeoJSON):
         return {'message': 'Pasada actualizada correctamente', '_id': str(result2)}
     except Exception as ex:
         return {'message': 'Error actualizando pasada', 'error': str(ex)}
-
 
 @app.delete("/api/v1/pasadas")
 def delete_pasadas():

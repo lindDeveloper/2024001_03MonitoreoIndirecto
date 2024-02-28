@@ -1,5 +1,5 @@
 
-let map = L.map('map').setView([-36.837257189962260,-73.088282006863680], 15);
+let map = L.map('map').setView([-36.837257189962260,-73.088282006863680], 10);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -10,13 +10,15 @@ let conjunto = [];
 let mediciones = [];
 let recorridos = [];
 let poly_segmentos = [];
+let caracterizar = [];
 let activos = [];
 let lineas = [];
 let data_pasadas = []; 
 const colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple',];
 const user = 'admin';
-const uri = 'http://192.168.1.125:8000/'
-let area = 15;
+const uri_api = 'http://localhost:8000/'
+const uri_aa = 'https://8541-181-160-18-4.ngrok-free.app/'
+let area = 20;
 
 let polygonMode = false;
 let linea = null;
@@ -25,9 +27,17 @@ let descripcion_poli = null;
 let nombreLabel = null;
 let descripcionLabel = null;
 
-fetch(uri+"api/v1/activos", {method: 'GET'})
+/*
+    Fetch que trae los activos del usuario y se encarga de manejar la representacion
+    de estos en el mapa, ademas de almacenarlos en un conjunto
+ */
+fetch(uri_api+"api/v1/activos/" + user, {method: 'GET'})
 .then(response => response.json())
 .then(data => {
+    if (data.length === 0) {
+        console.log('No hay activos');
+        return;
+    }
     data.forEach(activos => {
         //console.log(activos);
         conjunto.push(activos);
@@ -44,12 +54,16 @@ fetch(uri+"api/v1/activos", {method: 'GET'})
 
 
 /*
-    Tanto este fetch como la funcion addMeasurementOptions se encargan de llenar
-    el selector de archivos de mediciones con los archivos disponibles en la base de datos
+    Los siguientes fetchs son para llenar los selectores de mediciones, pasadas y
+    activos a caracterizar, estos ultimos se llenan con el administrador de activos
 */
-fetch(uri+"api/v1/geojsonAll", {method: 'GET'})
+fetch(uri_api+"api/v1/geojsonAll", {method: 'GET'})
 .then(response => response.json())
 .then(data => {
+    if (data.length === 0) {
+        console.log('No hay mediciones');
+        return;
+    }
     data.forEach(opcion => {
         //console.log(opcion);
         addMeasurementOptions(opcion._id, opcion.filename);
@@ -64,9 +78,13 @@ function addMeasurementOptions(id, name) {
     selector.appendChild(optionElement);
 }
 
-fetch(uri+"api/v1/pasadas", {method: 'GET'})
+fetch(uri_api+"api/v1/pasadas/?user="+user, {method: 'GET'})
 .then(response => response.json())
 .then(data => {
+    if (data.length === 0) {
+        console.log('No hay pasadas');
+        return;
+    }
     data.forEach(pasada => {
         addPasadaOptions(pasada._id, pasada.filename);
     });
@@ -80,6 +98,29 @@ function addPasadaOptions(id, name) {
     selector.appendChild(optionElement);
 
 }
+
+
+fetch("https://34df-181-160-18-4.ngrok-free.app/api/v1/assets", {
+    method: 'GET',
+    headers: {
+        'ngrok-skip-browser-warning': 'true'
+    }})
+.then(response => response.json())
+.then(data => {
+    data = data.filter(activo => activo.Latitud !== "" || activo.Longitud !== "");
+    data.forEach(activo => {
+        caracterizar.push(activo);
+        addCaracterizationOptions(activo.ID, activo.Nombre);
+    });
+});
+
+function addCaracterizationOptions(id, name) {
+    const selector = document.getElementById('caracterizationSelector');    
+    const optionElement = document.createElement('option');
+    optionElement.value = id;
+    optionElement.textContent = name;
+    selector.appendChild(optionElement);
+};
 
 /* 
     Funcion que maneja un modo de creacion de poligonos,
@@ -147,8 +188,8 @@ function togglePolygonMode() {
                     user: user
                 }
             };
-            
-            fetch(uri+"api/v1/activos", {
+            let caracterizado = caracterizar.find(activo => activo.ID === document.getElementById('caracterizationSelector').value);
+            fetch(uri_api+"api/v1/activos", {
                 method: 'POST',
                 body: JSON.stringify(features_poli),
                 headers: {
@@ -160,7 +201,26 @@ function togglePolygonMode() {
                 console.log(data);
                 features_poli._id = data._id;
                 conjunto.push(features_poli);
+                map.eachLayer(function (layer) {
+                    if(layer instanceof L.Marker) map.removeLayer(layer);
+                });
+                let selector = document.getElementById('caracterizationSelector');
+                selector.removeChild(selector.options[selector.selectedIndex]);
+                toggleActivate("");
             });
+
+            fetch("https://34df-181-160-18-4.ngrok-free.app/api/v1/assets/"+caracterizado.ID+"/flags",{
+                method: 'PATCH',
+                body: JSON.stringify({flags: {hasMI: true}}),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            }).then(response => response.json()).then(data => {
+                console.log(data);
+            });
+
+            /*fetch(administrador de activos pendiente + flag,{method: 'PUT'})*/
 
             map.removeLayer(linea);
             linea = null;
@@ -173,21 +233,26 @@ function togglePolygonMode() {
     Funcion para crear los textfields y labels correspondientes a nombre y descripcion de zona de interés
 */
 function createTextField() {
+    let activo_id = document.getElementById('caracterizationSelector').value;
+    let activo = caracterizar.find(activo => activo.ID === activo_id);
+    console.log(activo);
     let container = document.getElementById('textfield_container');
     nombreLabel = document.createElement('label');
     descripcionLabel = document.createElement('label');
     nombreLabel.textContent = 'Nombre';
     descripcionLabel.textContent = 'Descripcion';  
-    container.appendChild(nombreLabel);
     nombre_poli = document.createElement('input');
     nombre_poli.type = 'text';
     nombre_poli.classList.add('textfield');
+    container.appendChild(nombreLabel);
     container.appendChild(nombre_poli);
     descripcion_poli = document.createElement('input');
     descripcion_poli.type = 'text';
     descripcion_poli.classList.add('textfield');
     container.appendChild(descripcionLabel);
     container.appendChild(descripcion_poli);
+    descripcion_poli.value = activo.Descripcion;
+    nombre_poli.value = activo.Nombre;
 }
 
 /* 
@@ -220,18 +285,26 @@ function createPolygon(e) {
     }
 }
 
+/* 
+    Funcion que llama a la api para procesar una medicion y obtener las pasadas
+*/
 function processMeasurement(){
-    console.log('Procesando medicion');
     let valor = document.getElementById('measurementSelector').value;
-    console.log(valor); 
-    fetch(uri+"api/v1/geojson/"+valor+"/process", {method: 'GET'})
+    fetch(uri_api+"api/v1/geojson/"+user+"/process/"+valor, {method: 'GET'})
     .then(response => response.json())
     .then(data => {
         console.log(data);
-        addPasadaOptions(data._id, data.filename);
+        data.forEach(pasada => {
+            console.log(pasada);
+            addPasadaOptions(pasada.pasada_id, pasada.filename);
+        });
+        
     });
 }
 
+/* 
+    Funcion que calcula el KPI RMS de una pasada obtenida segun su id
+*/
 function RMScalc(id){
     let pasada = data_pasadas.find(pasada => pasada._id === id);
     let activo = conjunto.find(activo => activo._id === pasada.properties.act_id);
@@ -283,6 +356,10 @@ function RMScalc(id){
     updateKPI(pasada);
 }
 
+/* 
+    Funcion que dibuja el KPI RMS de una pasada en forma de grafico
+    segun parametros seleccionados por el usuario
+*/
 function RMSpaint(pasada){
     
     let eje = document.getElementById('axisSelector').value;
@@ -354,8 +431,13 @@ function RMSpaint(pasada){
     
 }
 
+
+/* 
+    Funcion que actualiza el KPI de una pasada en la base de datos,
+    busca ser llamada al final del calculo de un KPI
+*/
 function updateKPI(pasada){
-    fetch(uri+"api/v1/pasadas/"+pasada._id, {
+    fetch(uri_api+"api/v1/pasadas/"+pasada._id, {
         method: 'PUT',
         body: JSON.stringify(pasada),
         headers: {
@@ -366,12 +448,18 @@ function updateKPI(pasada){
     });
 }
 
+/* 
+    Funcion auxiliar que se encarga de obtener la matriz transpuesta
+    de una matriz dada, se utiliza para el calculo de RMS
+*/
 function transpose(matrix) {
+    console.log(matrix);
     return matrix[0].map((_, i) => matrix.map(row => row[i]));
 }
 
 /*
     Funcion que segmenta las lineas de las zonas de interes en base al valor delta ingresado
+    y despues actualiza la base de datos con los cambios realizados
 */
 function segmentLines(id){
     let activePolygon = conjunto.find(polygon => polygon._id === id);
@@ -433,7 +521,7 @@ function segmentLines(id){
         }
         console.log(activePolygon);
         
-        fetch(uri+"api/v1/activos/"+activePolygon._id, {
+        fetch(uri_api+"api/v1/activos/"+activePolygon._id, {
             method: 'PUT',
             body: JSON.stringify(activePolygon),
             headers: {
@@ -449,10 +537,25 @@ function segmentLines(id){
 }
 
 /*
+    Funcion que se encarga de disponibilizar el boton para crear la caracterizacion
+    de un activo no caracterizado
+*/
+function toggleActivate(id){
+    
+    if(id !== ""){
+        document.getElementById('togglePolygonMode').style.display = 'block';
+    }else{
+        document.getElementById('togglePolygonMode').style.display = 'none';
+    }
+
+}
+
+/*
     Funcion que toma valor delta ingresado en popup y lo asigna a la zona de interes correspondiente
 */
 map.on('popupclose', function(e) {
-    if(e.popup._source.feature === undefined) return;
+    console.log(e);
+    if(e.popup._source.feature === undefined && e.popup._source.properties === undefined) return;
     console.log(e.popup._source);
     let delta = document.getElementById('deltaInput').value;
     if (delta === "" || isNaN(delta) || !Number.isInteger(Number(delta))) {
@@ -485,10 +588,18 @@ map.on('popupclose', function(e) {
     
 });
 
+/*
+    Event listener para el boton de caracterizar activo
+*/
 document.getElementById('togglePolygonMode').addEventListener('click', togglePolygonMode);
+
+/* 
+    Event listeners para los selectores de mediciones y pasadas, que se encargan de
+    recuperar de la base de datos las mediciones y pasadas seleccionadas
+*/
 document.getElementById('measurementSelector').addEventListener('change', function(e) {
     const id = e.target.value;
-    fetch(uri+"api/v1/geojson/"+id, {method: 'GET'})
+    fetch(uri_api+"api/v1/geojson/"+id, {method: 'GET'})
     .then(response => response.json())
     .then(data => {
         console.log(data);
@@ -514,8 +625,9 @@ document.getElementById('measurementSelector').addEventListener('change', functi
 });
 document.getElementById('pasadaSelector').addEventListener('change', function(e) {
     const id = e.target.value;
+    console.log(id);
     if(id !== ""){
-        fetch(uri+"api/v1/pasadas/"+id, {method: 'GET'})
+        fetch(uri_api+"api/v1/pasadas/"+id, {method: 'GET'})
         .then(response => response.json())
         .then(data => {
             console.log(data);
@@ -535,6 +647,28 @@ document.getElementById('pasadaSelector').addEventListener('change', function(e)
         });
     }
 });
+
+/*
+    Event listener para el selector de activos a caracterizar, que se encarga de
+    llamar la funcion para activar el boton de caracterizacion
+*/
+document.getElementById('caracterizationSelector').addEventListener('change', function(e) {
+    map.eachLayer(function (layer) {
+        if(layer instanceof L.Marker) map.removeLayer(layer);
+    });
+    const id = e.target.value;
+    toggleActivate(id);
+    if(id === "") return;
+    let activo = caracterizar.find(activo => activo.ID === id);
+    map.setView([activo.Latitud, activo.Longitud], 5);
+    let marker = L.marker([activo.Latitud, activo.Longitud]).addTo(map);
+    
+});
+
+/*
+    Event listener para el boton de subir archivo de medicion,
+    si se ha ingresado un archivo, se sube usando la api y se añade al selector de mediciones
+*/
 document.getElementById('uploadButton').addEventListener('click', function() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
@@ -542,7 +676,7 @@ document.getElementById('uploadButton').addEventListener('click', function() {
     data.append('file', file);
     
     if (file) {
-        fetch(uri+"api/v1/geojsonUpload", {
+        fetch(uri_api+"api/v1/geojsonUpload", {
             method: 'POST',
             body: data
         }).then(response => response.json())
@@ -558,6 +692,10 @@ document.getElementById('uploadButton').addEventListener('click', function() {
     }
 });
 document.getElementById('processMeasurement').addEventListener('click', processMeasurement);
+
+/*
+    Even listeners para manejar el sidebar
+*/
 document.getElementsByClassName('openbutton')[0].addEventListener('click', function() {
     document.getElementById('sidebar1').style.width = '285px';
     document.getElementById('main').style.marginRight = '285px';
@@ -566,6 +704,11 @@ document.getElementsByClassName('closebutton')[0].addEventListener('click', func
     document.getElementById('sidebar1').style.width = '0';
     document.getElementById('main').style.marginRight = '0';
 });
+
+/*
+    Event listeners para el boton de calcular KPI y el boton de graficar KPI
+    que se encargan de llamar las funciones correspondientes segun parametros seleccionados
+*/
 document.getElementById('calculateKPI').addEventListener('click', function() {
     const pasada_id = document.getElementById('pasadaSelector').value;
     const KPI = document.getElementById('KPIselector').value;
