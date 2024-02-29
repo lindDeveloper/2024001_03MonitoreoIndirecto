@@ -16,8 +16,8 @@ let lineas = [];
 let data_pasadas = []; 
 const colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple',];
 const user = 'admin';
-const uri_api = 'http://localhost:8000/'
-const uri_aa = 'https://8541-181-160-18-4.ngrok-free.app/'
+const uri_api = 'https://ee5d85fd78ac.ngrok.app/'
+const uri_aa = 'https://49e0920d05c4.ngrok.app/'
 let area = 20;
 
 let polygonMode = false;
@@ -100,7 +100,7 @@ function addPasadaOptions(id, name) {
 }
 
 
-fetch("https://34df-181-160-18-4.ngrok-free.app/api/v1/assets", {
+fetch("https://49e0920d05c4.ngrok.app/api/v1/assets", {
     method: 'GET',
     headers: {
         'ngrok-skip-browser-warning': 'true'
@@ -209,7 +209,7 @@ function togglePolygonMode() {
                 toggleActivate("");
             });
 
-            fetch("https://34df-181-160-18-4.ngrok-free.app/api/v1/assets/"+caracterizado.ID+"/flags",{
+            fetch("https://49e0920d05c4.ngrok.app/api/v1/assets/"+caracterizado.ID+"/flags",{
                 method: 'PATCH',
                 body: JSON.stringify({flags: {hasMI: true}}),
                 headers: {
