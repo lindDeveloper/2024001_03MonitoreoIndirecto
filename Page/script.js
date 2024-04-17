@@ -100,7 +100,7 @@ function addPasadaOptions(id, name) {
 }
 
 
-fetch(uri_aa+"/api/v1/assets", {
+fetch(uri_aa+"api/v1/assets", {
     method: 'GET',
     headers: {
         'ngrok-skip-browser-warning': 'true'
@@ -209,7 +209,7 @@ function togglePolygonMode() {
                 toggleActivate("");
             });
 
-            fetch(uri_aa+"/api/v1/assets/"+caracterizado.ID+"/flags",{
+            fetch(uri_aa+"api/v1/assets/"+caracterizado.ID+"/flags",{
                 method: 'PATCH',
                 body: JSON.stringify({flags: {hasMI: true}}),
                 headers: {
