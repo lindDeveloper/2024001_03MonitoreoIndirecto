@@ -454,6 +454,7 @@ function updateKPI(pasada){
 */
 function transpose(matrix) {
     console.log(matrix);
+    if(matrix.length === 0) return [];
     return matrix[0].map((_, i) => matrix.map(row => row[i]));
 }
 
