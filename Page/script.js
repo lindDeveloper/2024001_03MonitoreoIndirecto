@@ -35,7 +35,7 @@ let points = [];
 let data_pasadas = [];
 const colors = ["red", "blue", "green", "yellow", "orange", "purple"];
 const user = "admin";
-const uri_api = "http://127.0.0.1:8000/";
+const uri_api = "https://apiim-lind.ngrok.app/";
 const uri_aa = "https://apiam-lind.ngrok.app/";
 let area = 20;
 
