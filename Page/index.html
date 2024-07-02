@@ -1,84 +1,141 @@
-
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Activos</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
-    <link rel="stylesheet" href="styles.css">
-    
-</head>
-<body>
-    <div id="main">
-        <button class="openbutton">☰</button>
-        <div id="sidebar1" class="sidebar">
-            <button class="closebutton">☰</button>
-            <div class="uploader">
-                <input type="file" id="fileInput" accept=".csv" />
-                <button id="uploadButton">Subir Recorrido</button>
-            </div>
-            <div class="pasada">
-                <select id="pasadaSelector">
-                    <option value="">Selecciona una pasada</option>
-                </select>
-                <select id="KPIselector">
-                    <option value="">KPI</option>
-                    <option value="RMS">RMS</option>
-                </select>
-                <button id="calculateKPI">Calcular</button>
-            </div>
-            <div class="measurement">
-                <select id="measurementSelector">
-                    <option value="">Selecciona una medicion</option>
-                </select>
-                <button id="processMeasurement">Procesar pasadas</button>
-            </div>   
-            <div class="graph">
-                <select id="axisSelector">
-                    <option value="">Eje</option>
-                    <option value="0">X</option>
-                    <option value="1">Y</option>
-                    <option value="2">Z</option>
-                </select>
-                <select id="deviceSelector">
-                    <option value="">Acelerometro</option>
-                    <option value="0">1</option>
-                    <option value="1">2</option>
-                    <option value="2">3</option>
-                    <option value="3">4</option>
-                    <option value="4">Todos</option>
-                </select>
-                <button id="plotGraph">Graficar</button>
-                <div id="graphPlot"></div>
-
-            </div>       
-        </div>
-        
-        
-        
-        <div id="map">
-            
-        </div>
-        <div id="sidebar2">
-            <div id="sidebar-content">
-                <button id="togglePolygonMode">Crear/Guardar Polígono</button>
-                <div id="textfield_container">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Mapa Activos</title>
+		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin />
+		<link rel="stylesheet" href="styles.css" />
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous" defer></script>
+	</head>
+	<body>
+		<div class="float-end">
+			<button class="btn btn-dark btn-floating" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight" aria-label="Monitoreo Indirecto"> ☰ Monitoreo Indirecto </button>
+		</div>
+		<div class="offcanvas text-bg-dark offcanvas-end" data-bs-scroll="true" data-bs-backdrop="false" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
+			<div class="offcanvas-header">
+				<h5 class="offcanvas-title" id="offcanvasRightLabel"> Monitoreo Indirecto </h5>
+				<button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+			</div>
+			<div class="offcanvas-body">
+				<div class="container">
+					<div class="row g-2 pb-1">
+						<p class="lead"><span class="badge bg-secondary">A</span> Cargar Recorrido</p>
+					</div>
+					<div class="row g-2">
+						<input type="file" id="fileInput" accept=".csv" class="form-control form-control-sm" />
+						<button id="uploadButton" class="btn btn-primary btn-sm"> Subir Recorrido </button>
+                        
+					</div>
+				</div>
+				<hr class="my-4" />
+				<div class="container mt-3">
+                    <div class="row g-2 pb-1">
+						<p class="lead"><span class="badge bg-secondary">B</span> Generar Pasadas</p>
+					</div>
+                    <div class="row g-2">
+						<select id="measurementSelector" class="form-select form-select-sm">
+                            <option value="">Selecciona un Recorrido</option>
+                        </select>
+                        <button id="processMeasurement" class="btn btn-primary btn-sm"> Procesar Pasadas </button>	
+					</div>
+				</div>
+                <hr class="my-4" />
+				<div class="container mt-3">
+                    <div class="row g-2 pb-1">
+						<p class="lead"><span class="badge bg-secondary">C</span> Calcular y Graficar </p>
+					</div>
+					<div class="row g-2">
+                        <div class="col-4">
+							<select id="KPIselector" class="form-select form-select-sm">
+								<option value="">KPI</option>
+								<option value="RMS">RMS</option>
+							</select>
+						</div>
+						<div class="col">
+							<select id="pasadaSelector" class="form-select form-select-sm">
+								<option value="">Selecciona una pasada</option>
+							</select>
+						</div>
+						<button id="calculateKPI" class="btn btn-primary btn-sm"> Calcular y Graficar KPI </button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="main" class="container-fluid p-0 position-relative">
+            <div id="map" class="mb-3"></div>
+            <div id="sidebar2" class=" row p-3">
+                <div class="col input-group">
+                    <label class="input-group-text" for="caracterizationSelector">Activo</label>
+                    <select id="caracterizationSelector" class="form-select">
+                        <option value="">No Caracterizado</option>
+                    </select>
                 </div>
-                <select id="caracterizationSelector">
-                    <option value="">No Caracterizado</option>
-                </select>
-                
-                
+                <div class="col-3">
+                    <button id="togglePolygonMode" class="btn btn-secondary" disabled> Caracterizar Activo </button>
+                </div>
+            </div>
+            <div class="toast position-absolute bottom-0 start-0 m-3" role="alert" aria-live="assertive" aria-atomic="true" id="myToast">
+                <div class="toast-header">
+                    <strong class="me-auto">Notificación</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                </div>
+            </div>
+            <div class="position-absolute bottom-0 my-3 px-4" id="editionButtons">
+                <button class="btn btn-success mx-2" id="savePolygon" type="button">Guardar Polígono <i class="bi bi-save2"></i></button>
+                <button class="btn btn-warning mx-2" id="revertLastLinePoint" type="button">Revertir Linea <i class="bi bi-arrow-counterclockwise"></i></button>
+                <button class="btn btn-danger mx-2" id="cancelPolygonCreation" type="button">Cancelar <i class="bi bi-x"></i></button>
             </div>
         </div>
-    </div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
-    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="utf-8"></script>
-    <script src="script.js"></script>
-</body>
+
+        <div class="modal fade open" id="KPIChartModal">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Gráfico de KPI</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="container mt-3">
+                            <div class="row g-2">
+                                <div class="col-3">
+                                    <div class="input-group mb-3">
+                                        <label class="input-group-text" for="axisSelector">Eje</label>
+                                        <select id="axisSelector" class="form-select">
+                                            <option value="0">X</option>
+                                            <option value="1">Y</option>
+                                            <option value="2">Z</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col">
+                                    <div class="input-group mb-3">
+                                        <label class="input-group-text" for="deviceSelector">Sensor</label>
+                                        <select id="deviceSelector" class="form-select">
+                                            <option value="0">AC-01</option>
+                                            <option value="1">AC-02</option>
+                                            <option value="2">AC-03</option>
+                                            <option value="3">AC-04</option>
+                                            <option value="4">Todos</option>
+                                        </select>
+                                    </div> 
+                                </div>
+                                <button id="plotGraph" class="btn btn-secondary">Graficar</button>
+                            </div>
+                        </div>
+                        <div id="graphPlot" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+       
+		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin defer></script>
+		<script src="https://unpkg.com/@turf/turf/turf.min.js" defer></script>
+		<script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="utf-8" defer></script>
+		<script src="script.js" defer></script>
+	</body>
+</html>
