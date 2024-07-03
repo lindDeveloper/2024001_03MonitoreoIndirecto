@@ -232,6 +232,7 @@ function createPolygonFromLine() {
 
   map.removeLayer(linea);
   linea = null;
+  points = [];
 }
 
 function initializeProperties(dynamicPolygon) {
