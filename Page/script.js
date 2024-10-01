@@ -33,7 +33,7 @@ let caracterizar = [];
 let activos = [];
 let points = [];
 let data_pasadas = [];
-const colors = ["red", "blue", "green", "yellow", "orange", "purple"];
+const colors = ["green"];
 const user = "admin";
 const uri_api = "https://apiim-lind.ngrok.app/";
 const uri_aa = "https://apiam-lind.ngrok.app/";
@@ -133,6 +133,8 @@ fetch(uri_aa + "api/v1/assets", {
     data = data.filter(
       (activo) => activo.Latitud !== "" || activo.Longitud !== ""
     );
+    const aiFingerprintSelector = document.getElementById("AISelector");
+    addAISelectorOptions(aiFingerprintSelector, 1, "Puente Biobio");
     data.forEach((activo) => {
       caracterizar.push(activo);
       addCaracterizationOptions(activo.ID, activo.Nombre);
@@ -141,6 +143,13 @@ fetch(uri_aa + "api/v1/assets", {
 
 function addCaracterizationOptions(id, name) {
   const selector = document.getElementById("caracterizationSelector");
+  const optionElement = document.createElement("option");
+  optionElement.value = id;
+  optionElement.textContent = name;
+  selector.appendChild(optionElement);
+}
+
+function addAISelectorOptions(selector, id, name) {
   const optionElement = document.createElement("option");
   optionElement.value = id;
   optionElement.textContent = name;
@@ -898,6 +907,10 @@ document
     map.setView([activo.Latitud, activo.Longitud], 15);
     L.marker([activo.Latitud, activo.Longitud]).addTo(map);
   });
+
+document.getElementById("AIRedirect").addEventListener("click", function () {
+  window.open("https://web.lind.global/webapps/home/session.html?app=APPS_CTF%2FCORFO_Huella_AI", "_blank");
+});
 
 /*
     Event listener para el boton de subir archivo de medicion,
