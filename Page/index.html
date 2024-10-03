@@ -74,7 +74,7 @@
                                 <option value="">Seleccionar Activo</option>
                             </select>
                         </div>
-                        <button id="AIRedirect" class="btn btn-primary btn-sm"> Huella IA </button>	
+                        <button id="AIRedirect" class="btn btn-primary btn-sm"> Abrir Módulo Machine Learning </button>	
 					</div>
 				</div>
 			</div>
@@ -139,10 +139,36 @@
                                         </select>
                                     </div> 
                                 </div>
-                                <button id="plotGraph" class="btn btn-secondary">Graficar</button>
+                                <div class="col-1">
+                                    <button id="thresholdConfiguration" class="btn btn-primary">
+                                        <i class="bi bi-gear-wide-connected"></i>
+                                    </button> 
+                                </div>
+                                <div id="thresholdInputsContainer" class="row g-2 mt-1 d-none">
+                                    <div class="col">
+                                        <div class="input-group mb-3">
+                                            <label class="input-group-text" for="xThresholdInput">Umbral Eje X</label>
+                                            <input type="number" class="form-control" id="xThresholdInput" value="5">
+                                        </div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="input-group mb-3">
+                                            <label class="input-group-text" for="yThresholdInput">Umbral Eje Y</label>
+                                            <input type="number" class="form-control" id="yThresholdInput" value="5">
+                                        </div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="input-group mb-3">
+                                            <label class="input-group-text" for="zThresholdInput">Umbral Eje Z</label>
+                                            <input type="number" class="form-control" id="zThresholdInput" value="5">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button id="plotGraph" class="btn btn-primary">Graficar</button>
                             </div>
                         </div>
                         <div id="graphPlot" class="mt-3"></div>
+                        <div id="alertCountContainer" class="mt-3"></div>
                     </div>
                 </div>
             </div>
