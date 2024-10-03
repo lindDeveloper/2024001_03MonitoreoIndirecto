@@ -529,60 +529,139 @@ function RMSpaint(pasada) {
 
   const deviceContainer = document.getElementById("deviceSelector");
   const deviceValue = deviceContainer.value;
-  const deviceName =
-    deviceContainer.options[deviceContainer.selectedIndex].text;
+  const deviceName = deviceContainer.options[deviceContainer.selectedIndex].text;
 
   if (axisValue === "" || deviceValue === "") {
-    showToast("Seleccione un eje y un acelerometro", false);
-    return;
+      showToast("Seleccione un eje y un acelerómetro", false);
+      return;
   }
   let RMS = pasada.properties.RMS;
   let lim_inf = parseInt(axisValue) * 4;
   let lim_sup = lim_inf;
 
   if (deviceValue === "4") {
-    lim_sup += 4;
+      lim_sup += 4;
   } else {
-    lim_inf += parseInt(deviceValue);
-    lim_sup = lim_inf + 1;
+      lim_inf += parseInt(deviceValue);
+      lim_sup = lim_inf + 1;
   }
 
-  let x_aux = [];
-  for (let i = 1; i <= RMS.length; i++) {
-    x_aux.push(i);
+  let thresholdInputId = '';
+  switch(axisValue) {
+      case "0": // Eje X
+          thresholdInputId = 'xThresholdInput';
+          break;
+      case "1": // Eje Y
+          thresholdInputId = 'yThresholdInput';
+          break;
+      case "2": // Eje Z
+          thresholdInputId = 'zThresholdInput';
+          break;
+      default:
+          thresholdInputId = '';
   }
-  let data = [];
+
+  const thresholdInput = document.getElementById(thresholdInputId);
+  const thresholdValue = thresholdInput ? parseFloat(thresholdInput.value) : null;
+
+  if (thresholdValue === null || isNaN(thresholdValue)) {
+      showToast("Por favor, ingrese un umbral válido para el eje seleccionado.", false);
+      return;
+  }
+
+  let alertCount = 0;
+
+  let x_values = [];
+  for (let j = 0; j < RMS.length; j++) {
+      x_values.push(j + 1);
+  }
+
+  var data = [];
   for (let i = lim_inf; i < lim_sup; i++) {
-    let aux = [];
-    for (let j = 0; j < RMS.length; j++) {
-      aux.push(RMS[j][i]);
-    }
-    let accel_aux = i + 1 - lim_inf;
-    let deviceNameAux = deviceContainer.options[accel_aux - 1].text;
-    let trace = {
-      x: x_aux,
-      y: aux,
-      type: "scatter",
-      mode: "lines+markers",
-      name: `${deviceNameAux} ${axisName}`,
-    };
-    data.push(trace);
+      let y_values = [];
+      let marker_colors = [];
+      for (let j = 0; j < RMS.length; j++) {
+          let rms_value = RMS[j][i];
+          y_values.push(rms_value);
+
+          if (rms_value > thresholdValue) {
+              alertCount++;
+              marker_colors.push('red');
+          } else {
+              marker_colors.push('blue');
+          }
+      }
+      let accel_aux = i - lim_inf;
+      let deviceNameAux = (deviceValue === "4") ? deviceContainer.options[accel_aux].text : deviceName;
+      let trace = {
+          x: x_values,
+          y: y_values,
+          type: "scatter",
+          mode: "lines+markers",
+          name: `${deviceNameAux} ${axisName}`,
+          marker: {
+              color: marker_colors,
+              size: 8
+          },
+          line: {
+              color: 'blue'
+          }
+      };
+      data.push(trace);
   }
+
   var layout = {
-    title: "RMS",
-    autosize: true,
-    xaxis: {
-      title: "Segmento",
-      automargin: true,
-    },
-    yaxis: {
       title: "RMS",
-      automargin: true,
-    },
+      autosize: true,
+      xaxis: {
+          title: "Segmento",
+          automargin: true,
+      },
+      yaxis: {
+          title: "RMS",
+          automargin: true,
+      },
+      shapes: []
   };
+
+  const xMin = Math.min(...x_values);
+  const xMax = Math.max(...x_values);
+
+  layout.shapes.push({
+      type: 'line',
+      x0: xMin,
+      x1: xMax,
+      y0: thresholdValue,
+      y1: thresholdValue,
+      line: {
+          color: '#FF0000',
+          width: 2,
+          dash: 'dash'
+      }
+  });
+
+  showAlertCount(alertCount);
+
   var config = { responsive: true };
 
   Plotly.newPlot("graphPlot", data, layout, config);
+}
+
+/**
+ * Displays an alert message based on the number of alerts detected.
+ * @param {number} alertCount - The number of alerts that exceed the threshold.
+ */
+function showAlertCount(alertCount) {
+  const alertContainer = document.getElementById('alertCountContainer');
+  if (alertCount > 0) {
+      alertContainer.innerHTML = `<div class="alert alert-warning" role="alert">
+          Se han detectado <strong>${alertCount}</strong> valores que exceden el umbral de riesgo.
+      </div>`;
+  } else {
+      alertContainer.innerHTML = `<div class="alert alert-success" role="alert">
+          No se han detectado valores que excedan el umbral de riesgo.
+      </div>`;
+  }
 }
 
 /* 
@@ -992,5 +1071,21 @@ document.getElementById("plotGraph").addEventListener("click", function () {
     } else {
       console.log("No se ha calculado el KPI");
     }
+  }
+});
+
+document.getElementById("thresholdConfiguration").addEventListener("click", function () {
+  const thresholdContainer = document.getElementById('thresholdInputsContainer');
+  thresholdContainer.classList.toggle('d-none');
+
+  // Cambiar el icono del botón (opcional)
+  const thresholdButton = document.getElementById('thresholdConfiguration');
+  const icon = thresholdButton.querySelector('i');
+  if (thresholdContainer.classList.contains('d-none')) {
+      icon.classList.remove('bi-chevron-up');
+      icon.classList.add('bi-gear-wide-connected');
+  } else {
+      icon.classList.remove('bi-gear-wide-connected');
+      icon.classList.add('bi-chevron-up');
   }
 });
